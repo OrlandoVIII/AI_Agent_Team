@@ -19,8 +19,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its bcrypt hash."""
     return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
+# Placeholder — will be replaced when DB session is wired up
+def get_db():
+    pass
+
 @router.post("/login", response_model=LoginResponse)
-def login(request: LoginRequest):
+def login(request: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate a user and return a signed JWT token."""
     SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     if not SECRET_KEY:
@@ -31,7 +35,6 @@ def login(request: LoginRequest):
     # if not user or not verify_password(request.password, user.hashed_password):
     #     raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # Temporary stub — no hardcoded credentials, fails safely
     raise HTTPException(
         status_code=501,
         detail="Authentication not yet implemented. Database required."
