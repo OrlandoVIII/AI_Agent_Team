@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 import anthropic
-from github import Github
+from github import Github, Auth
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -198,23 +198,33 @@ def format_pr_comment(review: dict) -> str:
     return f"{header}\n\n{stats_line}\n\n{summary}{findings_md}{footer}"
 
 
-def post_review(review: dict, comment_body: str) -> None:
+def post_review(review: dict, comment_body: str, pr_author: str) -> None:
     """Post the review to GitHub using the bot account."""
-    # Use the bot token to post the actual review decision
-    bot_github = Github(REVIEWER_BOT_TOKEN)
+    bot_github = Github(auth=Auth.Token(REVIEWER_BOT_TOKEN))
     bot_repo = bot_github.get_repo(REPO_FULL_NAME)
     pr = bot_repo.get_pull(PR_NUMBER)
+    bot_user = bot_github.get_user().login
 
     verdict = review["verdict"]
     github_event = "APPROVE" if verdict == "APPROVE" else "REQUEST_CHANGES"
 
-    # Post the review with comment + decision
-    pr.create_review(
-        body=comment_body,
-        event=github_event
-    )
+    # GitHub does not allow reviewing your own PR.
+    # This happens when YOU open a test PR manually.
+    # In production, agents open PRs so this won't occur.
+    if pr_author == bot_user:
+        print(f"   ⚠️  PR author ({pr_author}) is the bot — cannot post formal review.")
+        print(f"   Falling back to a regular comment instead.")
+        fallback = (
+            f"{comment_body}\n\n"
+            f"> ⚠️ _Could not post a formal review because the PR author and reviewer are the same account. "
+            f"In production, agents open PRs so this won't happen._"
+        )
+        pr.create_issue_comment(fallback)
+        print(f"✅ Comment posted (fallback mode)")
+    else:
+        pr.create_review(body=comment_body, event=github_event)
+        print(f"✅ Review posted: {github_event}")
 
-    print(f"✅ Review posted: {github_event}")
     print(f"   Critical: {review['stats']['critical']}")
     print(f"   Warning:  {review['stats']['warning']}")
     print(f"   Info:     {review['stats']['info']}")
@@ -225,7 +235,7 @@ def dismiss_previous_reviews() -> None:
     Dismiss previous bot reviews so the PR isn't stuck on stale reviews
     when the author pushes a fix.
     """
-    bot_github = Github(REVIEWER_BOT_TOKEN)
+    bot_github = Github(auth=Auth.Token(REVIEWER_BOT_TOKEN))
     bot_repo = bot_github.get_repo(REPO_FULL_NAME)
     pr = bot_repo.get_pull(PR_NUMBER)
 
@@ -246,11 +256,13 @@ def main():
     print("🤖 Code Reviewer Agent starting...")
 
     # Get PR info using the default GITHUB_TOKEN (read-only is fine here)
-    github = Github(os.environ["GITHUB_TOKEN"])
+    github = Github(auth=Auth.Token(os.environ["GITHUB_TOKEN"]))
     repo = github.get_repo(REPO_FULL_NAME)
     pr = repo.get_pull(PR_NUMBER)
+    pr_author = pr.user.login
 
     print(f"   PR #{PR_NUMBER}: {pr.title}")
+    print(f"   Author: {pr_author}")
     print(f"   Branch: {pr.head.ref} → {pr.base.ref}")
 
     # Dismiss any previous REQUEST_CHANGES from the bot (re-review on new push)
@@ -264,13 +276,11 @@ def main():
 
     if not diff.strip():
         print("   Diff is empty — nothing to review.")
-        # Post a quick approval
-        bot_github = Github(REVIEWER_BOT_TOKEN)
+        bot_github = Github(auth=Auth.Token(REVIEWER_BOT_TOKEN))
         bot_repo = bot_github.get_repo(REPO_FULL_NAME)
         bot_pr = bot_repo.get_pull(PR_NUMBER)
-        bot_pr.create_review(
-            body="## ✅ Code Review — Approved\n\n_No reviewable code changes detected._",
-            event="APPROVE"
+        bot_pr.create_issue_comment(
+            "## ✅ Code Review — Approved\n\n_No reviewable code changes detected._"
         )
         return
 
@@ -283,7 +293,7 @@ def main():
     # Format and post
     print("   Posting review to GitHub...")
     comment = format_pr_comment(review)
-    post_review(review, comment)
+    post_review(review, comment, pr_author)
 
     # Exit with error code if changes requested — marks the CI check as failed
     if review["verdict"] == "REQUEST_CHANGES":
