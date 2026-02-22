@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Backend Lint (placeholder)
+        run: echo "Backend lint will run here"
+
+      - name: Run Frontend Lint (placeholder)
+        run: echo "Frontend lint will run here"
+
+      - name: Run Tests (placeholder)
+        run: echo "Tests will run here"
