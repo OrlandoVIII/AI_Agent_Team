@@ -9,7 +9,6 @@ jobs:
     name: Handle Issue Assignment
     runs-on: ubuntu-latest
 
-    # Only run if assigned to the backend agent account
     if: github.event.assignee.login == 'opulence-backend1-bot'
 
     permissions:
@@ -18,16 +17,10 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout develop branch
-        uses: actions/checkout@v4
-        with:
-          ref: develop
-          fetch-depth: 0
-          token: ${{ secrets.BACKEND_AGENT_TOKEN }}
-          persist-credentials: true
-
-      - name: Configure Git as Backend Agent
+      - name: Clone repo as Backend Agent
         run: |
+          git clone https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git .
+          git checkout develop
           git config user.name "AI Backend Dev Agent"
           git config user.email "backendagent@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
