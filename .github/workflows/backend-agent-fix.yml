@@ -1,0 +1,59 @@
+name: Backend Dev Agent - Self Healing
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  fix-issues:
+    name: Fix Review Issues
+    runs-on: ubuntu-latest
+
+    # Only trigger when:
+    # 1. The reviewer bot requested changes
+    # 2. The PR is targeting develop
+    # 3. The PR branch is a backend feature branch
+    if: |
+      github.event.review.state == 'changes_requested' &&
+      github.event.pull_request.base.ref == 'develop' &&
+      startsWith(github.event.pull_request.head.ref, 'feature/backend/')
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.BACKEND_AGENT_TOKEN }}
+
+      - name: Configure Git as Backend Agent
+        run: |
+          git config user.name "AI Backend Dev Agent"
+          git config user.email "backendagent@users.noreply.github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic PyGithub requests
+
+      - name: Run Self-Healing Fix
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BACKEND_AGENT_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REVIEW_BODY: ${{ github.event.review.body }}
+          REVIEWER_LOGIN: ${{ github.event.review.user.login }}
+        run: |
+          python .github/scripts/backend_agent_fix.py
