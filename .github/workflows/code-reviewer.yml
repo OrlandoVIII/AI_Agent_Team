@@ -40,18 +40,11 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          python .github/scripts/code_reviewer.py
-          echo "verdict=approved" >> $GITHUB_OUTPUT
+          python .github/scripts/code_reviewer.py && echo "REVIEW_VERDICT=approved" >> $GITHUB_ENV || echo "REVIEW_VERDICT=changes_requested" >> $GITHUB_ENV
         continue-on-error: true
 
-      - name: Check if PR is from backend agent
-        id: check_agent
-        if: steps.reviewer.outcome == 'failure' && startsWith(github.event.pull_request.head.ref, 'feature/backend/')
-        run: |
-          echo "is_backend_agent=true" >> $GITHUB_OUTPUT
-
       - name: Run Self-Healing Fix (if backend agent PR has criticals)
-        if: steps.check_agent.outputs.is_backend_agent == 'true'
+        if: env.REVIEW_VERDICT == 'changes_requested' && startsWith(github.event.pull_request.head.ref, 'feature/backend/')
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BACKEND_AGENT_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
@@ -72,6 +65,6 @@ jobs:
           cp ../.github/scripts/backend_agent_fix_prompt.txt .github/scripts/backend_agent_fix_prompt.txt
           python .github/scripts/backend_agent_fix.py
 
-      - name: Fail if criticals found and no fix available
-        if: steps.reviewer.outcome == 'failure' && steps.check_agent.outputs.is_backend_agent != 'true'
+      - name: Fail job if criticals found
+        if: env.REVIEW_VERDICT == 'changes_requested'
         run: exit 1
