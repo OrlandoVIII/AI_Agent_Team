@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     # Only run if assigned to the backend agent account
-    if: github.event.assignee.login == 'ai-backend-dev-agent'
+    if: github.event.assignee.login == 'opulence-backend1-bot'
 
     permissions:
       contents: write
