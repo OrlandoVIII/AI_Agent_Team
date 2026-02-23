@@ -24,17 +24,13 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout feature branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-          token: ${{ secrets.BACKEND_AGENT_TOKEN }}
-
-      - name: Configure Git as Backend Agent
+      - name: Clone repo as Backend Agent
         run: |
+          git clone https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git .
+          git checkout ${{ github.event.pull_request.head.ref }}
           git config user.name "AI Backend Dev Agent"
           git config user.email "backendagent@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,7 +45,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BACKEND_AGENT_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
           REPO_FULL_NAME: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
