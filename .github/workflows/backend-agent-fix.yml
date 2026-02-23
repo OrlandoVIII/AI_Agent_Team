@@ -9,14 +9,8 @@ jobs:
     name: Fix Review Issues
     runs-on: ubuntu-latest
 
-    # Only trigger when:
-    # 1. The reviewer bot requested changes
-    # 2. The PR is targeting develop
-    # 3. The PR branch is a backend feature branch
-    if: |
-      github.event.review.state == 'changes_requested' &&
-      github.event.pull_request.base.ref == 'develop' &&
-      startsWith(github.event.pull_request.head.ref, 'feature/backend/')
+    # Only trigger on backend feature PRs targeting develop
+    if: github.event.pull_request.base.ref == 'develop' && startsWith(github.event.pull_request.head.ref, 'feature/backend/')
 
     permissions:
       contents: write
