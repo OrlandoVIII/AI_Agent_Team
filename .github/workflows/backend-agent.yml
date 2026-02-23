@@ -1,0 +1,53 @@
+name: Backend Dev Agent
+
+on:
+  issues:
+    types: [assigned]
+
+jobs:
+  check-and-run:
+    name: Handle Issue Assignment
+    runs-on: ubuntu-latest
+
+    # Only run if assigned to the backend agent account
+    if: github.event.assignee.login == 'ai-backend-dev-agent'
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.BACKEND_AGENT_TOKEN }}
+
+      - name: Configure Git as Backend Agent
+        run: |
+          git config user.name "AI Backend Dev Agent"
+          git config user.email "backendagent@users.noreply.github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic PyGithub requests
+
+      - name: Run Backend Dev Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BACKEND_AGENT_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ASSIGNEE: ${{ github.event.assignee.login }}
+        run: |
+          python .github/scripts/backend_agent.py
