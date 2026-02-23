@@ -24,11 +24,13 @@ jobs:
           ref: develop
           fetch-depth: 0
           token: ${{ secrets.BACKEND_AGENT_TOKEN }}
+          persist-credentials: true
 
       - name: Configure Git as Backend Agent
         run: |
           git config user.name "AI Backend Dev Agent"
           git config user.email "backendagent@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Set up Python
         uses: actions/setup-python@v5
