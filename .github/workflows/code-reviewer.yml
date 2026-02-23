@@ -12,13 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history so we can diff properly
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,10 +26,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: |
-          pip install anthropic PyGithub requests
+        run: pip install anthropic PyGithub requests
 
       - name: Run Code Reviewer Agent
+        id: reviewer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REVIEWER_BOT_TOKEN: ${{ secrets.REVIEWER_BOT_TOKEN }}
@@ -39,9 +39,36 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          python .github/scripts/code_reviewer.py
+          echo "verdict=approved" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Debug verdict
+        run: |
+          echo "Reviewer outcome: ${{ steps.reviewer.outcome }}"
+          echo "Reviewer verdict: ${{ steps.reviewer.outputs.verdict }}"
+          echo "PR branch: ${{ github.event.pull_request.head.ref }}"
+
+      - name: Self-Healing Fix
+        if: steps.reviewer.outcome == 'failure'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BACKEND_AGENT_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REVIEW_BODY: "Critical issues found"
+          REVIEWER_LOGIN: "opulence-reviewer-bot"
+        run: |
           git clone https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git fix_workspace
-          cd fix_workspace && git checkout ${{ github.event.pull_request.head.ref }}
-          cd fix_workspace && git config user.name "AI Backend Dev Agent"
-          cd fix_workspace && git config user.email "backendagent@users.noreply.github.com"
-          cd fix_workspace && git remote set-url origin https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
-          cd fix_workspace && python .github/scripts/backend_agent_fix.py
+          cd fix_workspace
+          git checkout ${{ github.event.pull_request.head.ref }}
+          git config user.name "AI Backend Dev Agent"
+          git config user.email "backendagent@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
+          python .github/scripts/backend_agent_fix.py
+
+      - name: Fail if criticals found
+        if: steps.reviewer.outcome == 'failure'
+        run: exit 1
