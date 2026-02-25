@@ -26,8 +26,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: |
-          pip install anthropic PyGithub requests
+        run: pip install anthropic PyGithub requests
 
       - name: Run Code Reviewer Agent
         id: reviewer
@@ -47,7 +46,7 @@ jobs:
           fi
         continue-on-error: true
 
-      - name: Run Self-Healing Fix (if backend agent PR has criticals)
+      - name: Self-Healing Fix
         if: steps.reviewer.outputs.verdict == 'changes_requested' && startsWith(github.event.pull_request.head.ref, 'feature/backend/')
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -56,7 +55,7 @@ jobs:
           REPO_FULL_NAME: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
-          REVIEW_BODY: "Critical issues found by Code Reviewer Agent"
+          REVIEW_BODY: "Critical issues found"
           REVIEWER_LOGIN: "opulence-reviewer-bot"
         run: |
           git clone https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git fix_workspace
@@ -69,6 +68,6 @@ jobs:
           cp ../.github/scripts/backend_agent_fix_prompt.txt .github/scripts/backend_agent_fix_prompt.txt
           python .github/scripts/backend_agent_fix.py
 
-      - name: Fail job if criticals found
+      - name: Fail if criticals found
         if: steps.reviewer.outputs.verdict == 'changes_requested'
         run: exit 1
