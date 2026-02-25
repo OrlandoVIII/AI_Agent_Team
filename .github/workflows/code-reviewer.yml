@@ -39,15 +39,18 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if python .github/scripts/code_reviewer.py; then
-            echo "verdict=approved" >> $GITHUB_OUTPUT
-          else
-            echo "verdict=changes_requested" >> $GITHUB_OUTPUT
-          fi
+          python .github/scripts/code_reviewer.py
+          echo "verdict=approved" >> $GITHUB_OUTPUT
         continue-on-error: true
 
+      - name: Debug verdict
+        run: |
+          echo "Reviewer outcome: ${{ steps.reviewer.outcome }}"
+          echo "Reviewer verdict: ${{ steps.reviewer.outputs.verdict }}"
+          echo "PR branch: ${{ github.event.pull_request.head.ref }}"
+
       - name: Self-Healing Fix
-        if: steps.reviewer.outputs.verdict == 'changes_requested' && startsWith(github.event.pull_request.head.ref, 'feature/backend/')
+        if: steps.reviewer.outcome == 'failure'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BACKEND_AGENT_TOKEN: ${{ secrets.BACKEND_AGENT_TOKEN }}
@@ -69,5 +72,5 @@ jobs:
           python .github/scripts/backend_agent_fix.py
 
       - name: Fail if criticals found
-        if: steps.reviewer.outputs.verdict == 'changes_requested'
+        if: steps.reviewer.outcome == 'failure'
         run: exit 1
