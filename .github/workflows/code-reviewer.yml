@@ -39,4 +39,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          python .github/scripts/code_reviewer.py
+          git clone https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git fix_workspace
+          cd fix_workspace && git checkout ${{ github.event.pull_request.head.ref }}
+          cd fix_workspace && git config user.name "AI Backend Dev Agent"
+          cd fix_workspace && git config user.email "backendagent@users.noreply.github.com"
+          cd fix_workspace && git remote set-url origin https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
+          cd fix_workspace && python .github/scripts/backend_agent_fix.py
