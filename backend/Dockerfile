@@ -8,8 +8,8 @@ ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y libpq5 curl && rm -rf /var/lib/apt/lists/*
+# Install system dependencies with security updates
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .

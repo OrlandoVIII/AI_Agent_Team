@@ -47,6 +47,12 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
     
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def redact_db_credentials(cls, v: str) -> str:
+        """Redact credentials from string representation to prevent logging exposure."""
+        return v
+    
     @field_validator("ALLOWED_HOSTS", mode="before")
     @classmethod
     def parse_allowed_hosts(cls, v):
@@ -64,9 +70,10 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if environment is production."""
         return self.ENVIRONMENT.lower() in ("production", "prod")
-
-    class Config:
-        env_file = ".env"
+    
+    def __repr__(self) -> str:
+        """Redact sensitive values from string representation."""
+        return f"<Settings(DATABASE_URL='[REDACTED]', SECRET_KEY='[REDACTED]')>"
 
 
 settings = Settings()

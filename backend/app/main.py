@@ -25,12 +25,16 @@ if settings.is_production:
         log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
         logging.info(f"Log directory created successfully at {log_dir}")
     except (OSError, PermissionError) as e:
-        # Fallback to current directory if /app/logs creation fails
+        # In production, fail fast if proper log directory cannot be created
+        if settings.is_production and not log_handlers[1:]:  # Only stdout handler exists
+            raise RuntimeError(f'Cannot create production log directory: {e}')
         logging.warning(f"Could not create log directory {log_dir}: {e}. Falling back to current directory.")
         try:
             log_handlers.append(logging.FileHandler('app.log'))
         except Exception as fallback_error:
             logging.error(f"Could not create fallback log file: {fallback_error}")
+            if settings.is_production:
+                raise RuntimeError('Cannot create production log directory')
 
 logging.basicConfig(
     level=logging.INFO if settings.is_production else logging.DEBUG,
