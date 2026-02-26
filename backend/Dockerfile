@@ -49,8 +49,8 @@ COPY --chown=app:app . .
 # Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+# Health check with production-friendly timeouts
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f --connect-timeout 5 --max-time 10 http://localhost:8000/health || exit 1
 
 # Run the application

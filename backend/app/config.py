@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     
-    # Database settings
-    DATABASE_URL: str = os.getenv('DATABASE_URL', 'postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db')
+    # Database settings - NO DEFAULT for production security
+    DATABASE_URL: str
     DATABASE_ECHO: bool = False
     
     # CORS settings
@@ -39,8 +39,17 @@ class Settings(BaseSettings):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        
+        # Validate SECRET_KEY is set and has sufficient length
         if not self.SECRET_KEY:
             raise ValueError('SECRET_KEY environment variable is required')
+        
+        if len(self.SECRET_KEY) < 32:
+            raise ValueError('SECRET_KEY must be at least 32 characters long for security')
+        
+        # Validate DATABASE_URL is set
+        if not self.DATABASE_URL:
+            raise ValueError('DATABASE_URL environment variable is required')
     
     @property
     def database_url_sync(self) -> str:

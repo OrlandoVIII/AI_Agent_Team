@@ -19,11 +19,19 @@ async def lifespan(app: FastAPI):
         await create_tables()
         logger.info("Database tables created successfully")
     except Exception as e:
-        logger.error(f'Failed to create tables: {e}')
-        raise
+        logger.error(f'Critical error during startup - failed to create tables: {e}')
+        # In production, you might want to continue in degraded mode
+        # For now, we'll raise to prevent startup with broken DB
+        if settings.ENVIRONMENT == "production":
+            logger.critical("Application cannot start without database access in production")
+            raise
+        else:
+            logger.warning("Continuing startup in development mode despite database error")
+    
     yield
+    
     # Shutdown
-    pass
+    logger.info("Application shutting down")
 
 
 app = FastAPI(

@@ -1,7 +1,7 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, DisconnectionError, TimeoutError as SQLTimeoutError
 from typing import AsyncGenerator
 from fastapi import HTTPException
 
@@ -45,8 +45,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
                 raise
             finally:
                 await session.close()
+    except DisconnectionError as e:
+        logger.error(f'Database connection lost: {e}')
+        raise HTTPException(status_code=503, detail='Database connection lost')
+    except SQLTimeoutError as e:
+        logger.error(f'Database timeout: {e}')
+        raise HTTPException(status_code=504, detail='Database timeout')
     except SQLAlchemyError as e:
-        logger.error('Database connection failed')
+        logger.error(f'Database error: {e}')
         raise HTTPException(status_code=500, detail='Database unavailable')
 
 
