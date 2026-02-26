@@ -33,6 +33,8 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
     autoflush=False,
     autocommit=False,
+    pool_timeout=20,
+    pool_recycle=3600,
 )
 
 

@@ -7,16 +7,11 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-import asyncio
-import random
-from typing import Callable, Awaitable, TypeVar
 
 from app.config import settings
 from app.database import engine, AsyncSessionLocal
 from app.models.base import Base
-
-# Type variable for the retry function
-T = TypeVar('T')
+from app.utils.retry import retry_with_exponential_backoff
 
 # Configure logging with comprehensive error handling and fallbacks
 def setup_logging():
@@ -25,8 +20,8 @@ def setup_logging():
     
     try:
         if settings.is_production:
-            # Use more restrictive permissions
-            log_dir = '/var/log/app'
+            # Use container-friendly log directory
+            log_dir = '/app/logs'
             try:
                 os.makedirs(log_dir, mode=0o700, exist_ok=True)
                 log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
@@ -80,37 +75,6 @@ logger = logging.getLogger(__name__)
 # Set third-party loggers to WARNING level to reduce noise
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-
-
-async def retry_with_exponential_backoff(func: Callable[[], Awaitable[T]], max_retries: int = 3, base_delay: int = 1, max_delay: int = 60) -> T:
-    """
-    Retry function with exponential backoff and jitter.
-    
-    Args:
-        func: Async function to retry
-        max_retries: Maximum retry attempts (default 3)
-        base_delay: Base delay in seconds (default 1)
-        max_delay: Maximum delay in seconds (default 60)
-        
-    Returns:
-        Result of the function call
-        
-    Raises:
-        Exception: The last exception encountered if all retries fail
-        
-    The function implements exponential backoff with jitter to prevent
-    thundering herd problems when multiple instances retry simultaneously.
-    """
-    for attempt in range(max_retries):
-        try:
-            return await func()
-        except Exception as e:
-            if attempt == max_retries - 1:
-                raise
-            logger.warning(f"Operation attempt {attempt + 1} failed: {e}. Retrying...")
-            # Exponential backoff with jitter to prevent thundering herd
-            delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
-            await asyncio.sleep(delay)
 
 
 async def create_tables():
