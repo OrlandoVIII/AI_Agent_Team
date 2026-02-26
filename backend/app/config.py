@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     DATABASE_ECHO: bool = False
     DATABASE_POOL_SIZE: int = int(os.getenv('DATABASE_POOL_SIZE', '10'))
     DATABASE_MAX_OVERFLOW: int = int(os.getenv('DATABASE_MAX_OVERFLOW', '20'))
+    DATABASE_CONNECT_TIMEOUT: int = int(os.getenv('DATABASE_CONNECT_TIMEOUT', '30'))
     POOL_TIMEOUT: int = int(os.getenv('POOL_TIMEOUT', '20'))
     POOL_RECYCLE: int = int(os.getenv('POOL_RECYCLE', '3600'))
     

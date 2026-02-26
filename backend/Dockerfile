@@ -8,10 +8,10 @@ ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies with security updates and pinned versions
+# Install system dependencies with specific versions
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
-    libpq5=15.* \
-    curl=7.* && \
+    libpq5=15.4-2+deb12u1 \
+    curl=7.88.1-10+deb12u5 && \
     apt-get upgrade -y && \
     rm -rf /var/lib/apt/lists/*
 

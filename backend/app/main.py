@@ -12,7 +12,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.config import settings
 from app.database import engine, AsyncSessionLocal
 from app.models.base import Base
-from app.utils.retry import retry_with_exponential_backoff
 
 # Configure logging with environment variables
 def setup_logging():
@@ -49,12 +48,9 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
 async def create_tables():
-    """Create database tables with retry logic and jitter."""
-    async def _create():
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-    
-    await retry_with_exponential_backoff(_create)
+    """Create database tables with proper error handling."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 @asynccontextmanager

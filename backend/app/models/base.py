@@ -18,6 +18,10 @@ class Base(DeclarativeBase):
         onupdate=func.timezone('UTC', func.now()),
         nullable=True
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), 
+        nullable=True
+    )
     
     def __repr__(self) -> str:
         """String representation of the model."""
