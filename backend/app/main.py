@@ -18,8 +18,8 @@ from app.models.base import Base
 log_handlers = [logging.StreamHandler(sys.stdout)]
 
 if settings.is_production:
-    log_dir = '/app/logs'
-    # Create log directory with error handling and more restrictive permissions
+    # Use fixed absolute path for security
+    log_dir = '/var/log/app'
     try:
         os.makedirs(log_dir, mode=0o750, exist_ok=True)
         log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))

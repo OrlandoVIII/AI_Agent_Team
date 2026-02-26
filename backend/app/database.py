@@ -37,7 +37,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency to get database session with proper error handling."""
+    """Dependency to get database session with specific error handling."""
     try:
         async with AsyncSessionLocal() as session:
             try:
@@ -46,6 +46,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
                 logger.error(f"Database session error: {e}")
                 await session.rollback()
                 raise HTTPException(status_code=500, detail="Database error")
+    except asyncpg.exceptions.PostgresError as e:
+        logger.error(f"PostgreSQL error: {e}")
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    except ConnectionError as e:
+        logger.error(f"Database connection error: {e}")
+        raise HTTPException(status_code=503, detail="Database connection failed")
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        logger.error(f"Unexpected database error: {e}")
         raise HTTPException(status_code=503, detail="Database unavailable")

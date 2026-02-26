@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -51,7 +52,7 @@ class Settings(BaseSettings):
     @classmethod
     def redact_db_credentials(cls, v: str) -> str:
         """Redact credentials from string representation to prevent logging exposure."""
-        return v
+        return re.sub(r'://[^:]+:[^@]+@', '://***:***@', v)
     
     @field_validator("ALLOWED_HOSTS", mode="before")
     @classmethod
