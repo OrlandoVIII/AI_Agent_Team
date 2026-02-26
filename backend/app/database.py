@@ -46,12 +46,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
                 logger.error(f"Database session error: {e}")
                 await session.rollback()
                 raise HTTPException(status_code=500, detail="Database error")
-    except asyncpg.exceptions.PostgresError as e:
-        logger.error(f"PostgreSQL error: {e}")
-        raise HTTPException(status_code=503, detail="Database service unavailable")
-    except ConnectionError as e:
-        logger.error(f"Database connection error: {e}")
-        raise HTTPException(status_code=503, detail="Database connection failed")
     except Exception as e:
-        logger.error(f"Unexpected database error: {e}")
+        logger.error(f"Database connection failed: {e}")
         raise HTTPException(status_code=503, detail="Database unavailable")

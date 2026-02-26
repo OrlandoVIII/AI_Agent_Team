@@ -18,10 +18,10 @@ from app.models.base import Base
 log_handlers = [logging.StreamHandler(sys.stdout)]
 
 if settings.is_production:
-    # Use fixed absolute path for security
+    # Use more restrictive permissions
     log_dir = '/var/log/app'
     try:
-        os.makedirs(log_dir, mode=0o750, exist_ok=True)
+        os.makedirs(log_dir, mode=0o700, exist_ok=True)
         log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
         logging.info(f"Log directory created successfully at {log_dir}")
     except (OSError, PermissionError) as e:
@@ -49,20 +49,26 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
-async def create_tables():
-    """Create database tables with retry logic and jitter."""
-    max_retries = 3
+async def retry_with_exponential_backoff(func, max_retries=3):
+    """Utility function for retrying operations with exponential backoff."""
     for attempt in range(max_retries):
         try:
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            return
-        except SQLAlchemyError as e:
+            return await func()
+        except Exception as e:
             if attempt == max_retries - 1:
                 raise
-            logger.warning(f"Database creation attempt {attempt + 1} failed: {e}. Retrying...")
+            logger.warning(f"Operation attempt {attempt + 1} failed: {e}. Retrying...")
             # Exponential backoff with jitter to prevent thundering herd
             await asyncio.sleep(2 ** attempt + random.uniform(0, 1))
+
+
+async def create_tables():
+    """Create database tables with retry logic and jitter."""
+    async def _create():
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    
+    await retry_with_exponential_backoff(_create)
 
 
 @asynccontextmanager
