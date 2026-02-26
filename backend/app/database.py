@@ -40,18 +40,28 @@ AsyncSessionLocal = async_sessionmaker(
 
 def map_db_error(e: Exception) -> HTTPException:
     """Map database errors to appropriate HTTP exceptions."""
-    if isinstance(e, asyncpg.exceptions.ConnectionDoesNotExistError):
-        logger.error(f"Database connection does not exist: {e}")
-        return HTTPException(status_code=503, detail="Database connection lost")
-    elif isinstance(e, asyncpg.exceptions.PostgresError):
-        logger.error(f"PostgreSQL error: {e}")
-        return HTTPException(status_code=500, detail=f"Database error: {e.sqlstate}")
-    elif isinstance(e, SQLAlchemyError):
-        logger.error(f"Database session error: {e}")
-        return HTTPException(status_code=500, detail="Database error")
+    if settings.is_production:
+        # In production, return generic error messages to avoid leaking details
+        logger.error(f"Database error: {e}")
+        if isinstance(e, (asyncpg.exceptions.ConnectionDoesNotExistError, 
+                         asyncpg.exceptions.ConnectionFailureError)):
+            return HTTPException(status_code=503, detail="Service temporarily unavailable")
+        else:
+            return HTTPException(status_code=500, detail="Internal server error")
     else:
-        logger.error(f"Database connection failed: {e}")
-        return HTTPException(status_code=503, detail="Database unavailable")
+        # In development, return detailed error information for debugging
+        if isinstance(e, asyncpg.exceptions.ConnectionDoesNotExistError):
+            logger.error(f"Database connection does not exist: {e}")
+            return HTTPException(status_code=503, detail="Database connection lost")
+        elif isinstance(e, asyncpg.exceptions.PostgresError):
+            logger.error(f"PostgreSQL error: {e}")
+            return HTTPException(status_code=500, detail=f"Database error: {e.sqlstate}")
+        elif isinstance(e, SQLAlchemyError):
+            logger.error(f"Database session error: {e}")
+            return HTTPException(status_code=500, detail="Database error")
+        else:
+            logger.error(f"Database connection failed: {e}")
+            return HTTPException(status_code=503, detail="Database unavailable")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -60,8 +70,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         async with AsyncSessionLocal() as session:
             try:
                 yield session
-            except Exception as e:
+            except SQLAlchemyError as e:
+                logger.error(f"Database session error: {e}")
                 await session.rollback()
-                raise map_db_error(e)
+                raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
-        raise map_db_error(e)
+        logger.error(f"Database connection failed: {e}")
+        raise HTTPException(status_code=503, detail="Database unavailable")

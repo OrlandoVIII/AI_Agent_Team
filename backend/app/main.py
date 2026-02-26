@@ -13,57 +13,27 @@ from app.database import engine, AsyncSessionLocal
 from app.models.base import Base
 from app.utils.retry import retry_with_exponential_backoff
 
-# Configure logging with comprehensive error handling and fallbacks
+# Configure logging with environment variables
 def setup_logging():
-    """Setup logging with comprehensive error handling and fallbacks."""
+    """Setup logging with environment variables to control destinations."""
+    log_level = os.getenv('LOG_LEVEL', 'INFO' if settings.is_production else 'DEBUG')
+    log_to_file = os.getenv('LOG_TO_FILE', 'false').lower() == 'true'
+    
     log_handlers = [logging.StreamHandler(sys.stdout)]
     
-    try:
-        if settings.is_production:
-            # Use container-friendly log directory
-            log_dir = '/app/logs'
-            try:
+    if log_to_file:
+        try:
+            log_dir = '/app/logs' if settings.is_production else '.'
+            if settings.is_production:
                 os.makedirs(log_dir, mode=0o700, exist_ok=True)
-                log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
-                logging.info(f"Log directory created successfully at {log_dir}")
-            except OSError as e:
-                # Handle file system errors specifically
-                if settings.is_production:
-                    raise RuntimeError(f'Cannot create production log directory due to OS error: {e}')
-                logging.warning(f"OS error creating log directory {log_dir}: {e}. Falling back to current directory.")
-                try:
-                    log_handlers.append(logging.FileHandler('app.log'))
-                except OSError as fallback_error:
-                    logging.error(f"OS error creating fallback log file: {fallback_error}")
-                    if settings.is_production:
-                        raise RuntimeError('Cannot create production log directory or fallback')
-            except PermissionError as e:
-                # Handle permission errors specifically
-                if settings.is_production:
-                    raise RuntimeError(f'Cannot create production log directory due to permission error: {e}')
-                logging.warning(f"Permission error creating log directory {log_dir}: {e}. Falling back to current directory.")
-                try:
-                    log_handlers.append(logging.FileHandler('app.log'))
-                except PermissionError as fallback_error:
-                    logging.error(f"Permission error creating fallback log file: {fallback_error}")
-                    if settings.is_production:
-                        raise RuntimeError('Cannot create production log directory or fallback due to permissions')
-    except Exception as e:
-        # Final fallback: ensure critical errors are always visible
-        logging.error(f"Critical logging setup error: {e}")
-        if settings.is_production:
-            # In production, we must have proper logging
-            raise RuntimeError(f"Critical logging setup failure in production: {e}")
-        else:
-            # In development, warn but continue with console logging only
-            logging.warning("Falling back to console logging only due to setup errors")
-    
-    # Final validation to ensure at least one log handler is configured
-    if not log_handlers:
-        raise RuntimeError('No log handlers configured')
+            log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
+        except (OSError, PermissionError) as e:
+            if settings.is_production:
+                raise RuntimeError(f'Cannot create production log file: {e}')
+            logging.warning(f"Could not create log file: {e}. Using console only.")
     
     logging.basicConfig(
-        level=logging.INFO if settings.is_production else logging.DEBUG,
+        level=getattr(logging, log_level.upper()),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=log_handlers
     )
