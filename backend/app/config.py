@@ -57,8 +57,5 @@ class Settings(BaseSettings):
         """Check if environment is production."""
         return self.ENVIRONMENT.lower() in ("production", "prod")
 
-    class Config:
-        env_file = ".env"
-
 
 settings = Settings()

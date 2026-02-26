@@ -21,6 +21,9 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created successfully")
+    except SQLAlchemyError as e:
+        logger.error(f"Database table creation failed: {e}")
+        raise
     except Exception as e:
         logger.error(f"Failed to create tables: {e}")
         raise
