@@ -1,6 +1,6 @@
 import os
 from typing import List
-from pydantic import Field, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,30 +15,30 @@ class Settings(BaseSettings):
     )
     
     # Project Info
-    PROJECT_NAME: str = Field(default="FastAPI Backend")
-    VERSION: str = Field(default="0.1.0")
-    DESCRIPTION: str = Field(default="FastAPI Backend API")
-    API_V1_STR: str = Field(default="/api/v1")
+    PROJECT_NAME: str = "FastAPI Backend"
+    VERSION: str = "0.1.0"
+    DESCRIPTION: str = "FastAPI Backend API"
+    API_V1_STR: str = "/api/v1"
     
     # Server Settings
-    HOST: str = Field(default="0.0.0.0")
-    PORT: int = Field(default=8000)
-    RELOAD: bool = Field(default=True)
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    RELOAD: bool = True
     
     # CORS Settings
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # Database Settings
-    DATABASE_URL: str = Field(default_factory=lambda: os.getenv('DATABASE_URL', 'postgresql+asyncpg://user:password@localhost:5432/fastapi_db'))
-    DATABASE_ECHO: bool = Field(default=False)
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db"
+    DATABASE_ECHO: bool = False
     
     # Security Settings
-    SECRET_KEY: str = Field(...)
-    ALGORITHM: str = Field(default="HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
+    SECRET_KEY: str = "change-me-in-production-must-be-32-chars-minimum"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Environment
-    ENVIRONMENT: str = Field(default="development")
+    ENVIRONMENT: str = "development"
     
     @field_validator("SECRET_KEY")
     @classmethod
@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if environment is production."""
         return self.ENVIRONMENT.lower() in ("production", "prod")
+
+    class Config:
+        env_file = ".env"
 
 
 settings = Settings()

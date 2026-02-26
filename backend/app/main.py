@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 import asyncio
+import random
 
 from app.config import settings
 from app.database import engine, AsyncSessionLocal
@@ -18,9 +19,9 @@ log_handlers = [logging.StreamHandler(sys.stdout)]
 
 if settings.is_production:
     log_dir = '/app/logs'
-    # Create log directory with error handling and proper permissions
+    # Create log directory with error handling and more restrictive permissions
     try:
-        os.makedirs(log_dir, mode=0o755, exist_ok=True)
+        os.makedirs(log_dir, mode=0o750, exist_ok=True)
         log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
         logging.info(f"Log directory created successfully at {log_dir}")
     except (OSError, PermissionError) as e:
@@ -45,7 +46,7 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
 async def create_tables():
-    """Create database tables with retry logic."""
+    """Create database tables with retry logic and jitter."""
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -56,12 +57,13 @@ async def create_tables():
             if attempt == max_retries - 1:
                 raise
             logger.warning(f"Database creation attempt {attempt + 1} failed: {e}. Retrying...")
-            await asyncio.sleep(2 ** attempt)  # exponential backoff
+            # Exponential backoff with jitter to prevent thundering herd
+            await asyncio.sleep(2 ** attempt + random.uniform(0, 1))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
+    """Application lifespan manager with proper error handling."""
     try:
         await create_tables()
         logger.info("Database tables created successfully")
