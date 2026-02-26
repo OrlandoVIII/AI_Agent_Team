@@ -4,7 +4,10 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    """Application settings."""
+    """Application settings.
+    
+    See .env.example for configuration template
+    """
     
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -33,6 +36,11 @@ class Settings(BaseSettings):
     
     # API settings
     API_V1_STR: str = "/api/v1"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.SECRET_KEY:
+            raise ValueError('SECRET_KEY environment variable is required')
     
     @property
     def database_url_sync(self) -> str:

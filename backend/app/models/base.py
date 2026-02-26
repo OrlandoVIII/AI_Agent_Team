@@ -28,4 +28,5 @@ class Base(DeclarativeBase):
     )
     
     def __repr__(self) -> str:
+        """Return string representation of model instance."""
         return f"<{self.__class__.__name__}(id={self.id})>"

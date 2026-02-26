@@ -1,7 +1,9 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.exc import SQLAlchemyError
 from typing import AsyncGenerator
+from fastapi import HTTPException
 
 from app.config import settings
 
@@ -33,15 +35,19 @@ AsyncSessionLocal = async_sessionmaker(
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get database session."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception as e:
-            await session.rollback()
-            logger.exception('Database error occurred during session')
-            raise
-        finally:
-            await session.close()
+    try:
+        async with AsyncSessionLocal() as session:
+            try:
+                yield session
+            except Exception as e:
+                await session.rollback()
+                logger.exception('Database error occurred during session')
+                raise
+            finally:
+                await session.close()
+    except SQLAlchemyError as e:
+        logger.error('Database connection failed')
+        raise HTTPException(status_code=500, detail='Database unavailable')
 
 
 async def create_tables():
@@ -52,10 +58,14 @@ async def create_tables():
     Production deployments should use Alembic migrations instead for 
     proper database schema management and versioning.
     """
-    from app.models.base import Base as ModelBase
-    
-    async with engine.begin() as conn:
-        await conn.run_sync(ModelBase.metadata.create_all)
+    try:
+        from app.models.base import Base as ModelBase
+        
+        async with engine.begin() as conn:
+            await conn.run_sync(ModelBase.metadata.create_all)
+    except Exception as e:
+        logger.error(f'Failed to create tables: {e}')
+        raise
 
 
 async def drop_tables():
@@ -66,7 +76,11 @@ async def drop_tables():
     development or testing environments. Production deployments should
     use Alembic migrations for schema changes.
     """
-    from app.models.base import Base as ModelBase
-    
-    async with engine.begin() as conn:
-        await conn.run_sync(ModelBase.metadata.drop_all)
+    try:
+        from app.models.base import Base as ModelBase
+        
+        async with engine.begin() as conn:
+            await conn.run_sync(ModelBase.metadata.drop_all)
+    except Exception as e:
+        logger.error(f'Failed to drop tables: {e}')
+        raise
