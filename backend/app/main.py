@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,14 +13,21 @@ from app.config import settings
 from app.database import engine, AsyncSessionLocal
 from app.models.base import Base
 
-# Configure logging
+# Configure logging with robust file handler
+log_handlers = [logging.StreamHandler(sys.stdout)]
+
+if settings.is_production:
+    log_dir = '/app/logs'
+    if os.path.exists(log_dir) and os.access(log_dir, os.W_OK):
+        log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
+    else:
+        # Fallback to current directory if /app/logs doesn't exist or isn't writable
+        log_handlers.append(logging.FileHandler('app.log'))
+
 logging.basicConfig(
     level=logging.INFO if settings.is_production else logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("app.log") if settings.is_production else logging.NullHandler()
-    ]
+    handlers=log_handlers
 )
 
 logger = logging.getLogger(__name__)

@@ -4,6 +4,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException
 from typing import AsyncGenerator
+import asyncpg.exceptions
 
 from app.config import settings
 
@@ -45,6 +46,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
                 logger.error(f"Database session error: {e}")
                 await session.rollback()
                 raise HTTPException(status_code=500, detail="Database error")
+    except asyncpg.exceptions.PostgresError as e:
+        logger.error(f"PostgreSQL specific error: {e}")
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    except ConnectionError as e:
+        logger.error(f"Database connection error: {e}")
+        raise HTTPException(status_code=503, detail="Database connection failed")
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        logger.error(f"Unexpected database error: {e}")
         raise HTTPException(status_code=503, detail="Database unavailable")

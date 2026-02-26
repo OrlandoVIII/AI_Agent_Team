@@ -68,6 +68,5 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Override from environment variables if provided
-if os.getenv("ALLOWED_HOSTS"):
-    settings.ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS").split(",") if host.strip()]
+class Config:
+    env_file = ".env"
