@@ -29,11 +29,11 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # Database Settings
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db"
+    DATABASE_URL: str = Field(..., description="Database URL must be provided via environment")
     DATABASE_ECHO: bool = Field(default=False)
     
     # Security Settings
-    SECRET_KEY: str = "change-me-in-production-must-be-32-chars-minimum"
+    SECRET_KEY: str = Field(..., description="Must be set via environment variable")
     ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
     
@@ -56,9 +56,6 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if environment is production."""
         return self.ENVIRONMENT.lower() in ("production", "prod")
-    
-    class Config:
-        env_file = ".env"
 
 
 settings = Settings()

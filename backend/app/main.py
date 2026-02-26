@@ -64,8 +64,14 @@ async def health_check():
                 "database": "connected"
             }
         )
+    except SQLAlchemyError as e:
+        logger.warning("Database health check failed")
+        raise HTTPException(
+            status_code=503, 
+            detail="Service unavailable - database connection failed"
+        )
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logger.error(f"Health check error: {e}")
         raise HTTPException(
             status_code=503, 
             detail="Service unavailable - database connection failed"
