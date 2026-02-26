@@ -29,30 +29,47 @@ class Settings(BaseSettings):
     # CORS Settings
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
-    # Database Settings
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db"
+    # Database Settings - REQUIRED, no default
+    DATABASE_URL: str
     DATABASE_ECHO: bool = False
     
-    # Security Settings
-    SECRET_KEY: str = "change-me-in-production-must-be-32-chars-minimum"
+    # Security Settings - REQUIRED, no default
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Environment
     ENVIRONMENT: str = "development"
     
+    def __init__(self, **kwargs):
+        # Get from environment if not provided
+        if 'SECRET_KEY' not in kwargs:
+            kwargs['SECRET_KEY'] = os.getenv('SECRET_KEY')
+        if 'DATABASE_URL' not in kwargs:
+            kwargs['DATABASE_URL'] = os.getenv('DATABASE_URL')
+        
+        if not kwargs.get('SECRET_KEY'):
+            raise ValueError("SECRET_KEY environment variable is required")
+        if not kwargs.get('DATABASE_URL'):
+            raise ValueError("DATABASE_URL environment variable is required")
+        
+        super().__init__(**kwargs)
+    
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
+        if not v:
+            raise ValueError("SECRET_KEY is required")
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
     
     @field_validator("DATABASE_URL")
     @classmethod
-    def redact_db_credentials(cls, v: str) -> str:
-        """Redact credentials from string representation to prevent logging exposure."""
-        return re.sub(r'://[^:]+:[^@]+@', '://***:***@', v)
+    def validate_database_url(cls, v: str) -> str:
+        if not v:
+            raise ValueError("DATABASE_URL is required")
+        return v
     
     @field_validator("ALLOWED_HOSTS", mode="before")
     @classmethod
