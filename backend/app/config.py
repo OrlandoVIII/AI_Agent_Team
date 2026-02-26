@@ -1,6 +1,6 @@
 import os
 from typing import List
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,23 +26,26 @@ class Settings(BaseSettings):
     RELOAD: bool = Field(default=True)
     
     # CORS Settings
-    ALLOWED_HOSTS: List[str] = Field(default=["*"])
+    ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # Database Settings
-    DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/fastapi_db"
-    )
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db"
     DATABASE_ECHO: bool = Field(default=False)
     
     # Security Settings
-    SECRET_KEY: str = Field(
-        default="your-secret-key-change-this-in-production"
-    )
+    SECRET_KEY: str = "change-me-in-production-must-be-32-chars-minimum"
     ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
     
     # Environment
     ENVIRONMENT: str = Field(default="development")
+    
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters")
+        return v
     
     @property
     def is_development(self) -> bool:
@@ -53,6 +56,9 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if environment is production."""
         return self.ENVIRONMENT.lower() in ("production", "prod")
+    
+    class Config:
+        env_file = ".env"
 
 
 settings = Settings()

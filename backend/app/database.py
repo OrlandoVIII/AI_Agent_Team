@@ -1,8 +1,13 @@
+import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.exc import SQLAlchemyError
+from fastapi import HTTPException
 from typing import AsyncGenerator
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -30,12 +35,14 @@ AsyncSessionLocal = async_sessionmaker(
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get database session."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    try:
+        async with AsyncSessionLocal() as session:
+            try:
+                yield session
+            except SQLAlchemyError as e:
+                logger.error(f"Database session error: {e}")
+                await session.rollback()
+                raise HTTPException(status_code=500, detail="Database error")
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        raise HTTPException(status_code=503, detail="Database unavailable")

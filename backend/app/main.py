@@ -1,20 +1,31 @@
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
-from app.database import engine
+from app.database import engine, AsyncSessionLocal
 from app.models.base import Base
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    # Create tables on startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        # Create tables on startup
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create tables: {e}")
+        raise
     yield
+    logger.info("Application shutting down")
     # Cleanup on shutdown
     await engine.dispose()
 
@@ -39,14 +50,26 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return JSONResponse(
-        content={
-            "status": "healthy",
-            "service": settings.PROJECT_NAME,
-            "version": settings.VERSION
-        }
-    )
+    """Health check endpoint with database connectivity check."""
+    try:
+        # Check database connectivity
+        async with AsyncSessionLocal() as session:
+            await session.execute(text('SELECT 1'))
+        
+        return JSONResponse(
+            content={
+                "status": "healthy",
+                "service": settings.PROJECT_NAME,
+                "version": settings.VERSION,
+                "database": "connected"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=503, 
+            detail="Service unavailable - database connection failed"
+        )
 
 
 @app.get("/")
