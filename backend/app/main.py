@@ -9,50 +9,68 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 import asyncio
 import random
+from typing import Callable, Awaitable, TypeVar
 
 from app.config import settings
 from app.database import engine, AsyncSessionLocal
 from app.models.base import Base
 
-# Configure logging with robust file handler
-log_handlers = [logging.StreamHandler(sys.stdout)]
+# Type variable for the retry function
+T = TypeVar('T')
 
-if settings.is_production:
-    # Use more restrictive permissions
-    log_dir = '/var/log/app'
+# Configure logging with comprehensive error handling and fallbacks
+def setup_logging():
+    """Setup logging with comprehensive error handling and fallbacks."""
+    log_handlers = [logging.StreamHandler(sys.stdout)]
+    
     try:
-        os.makedirs(log_dir, mode=0o700, exist_ok=True)
-        log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
-        logging.info(f"Log directory created successfully at {log_dir}")
-    except OSError as e:
-        # Handle file system errors specifically
         if settings.is_production:
-            raise RuntimeError(f'Cannot create production log directory due to OS error: {e}')
-        logging.warning(f"OS error creating log directory {log_dir}: {e}. Falling back to current directory.")
-        try:
-            log_handlers.append(logging.FileHandler('app.log'))
-        except OSError as fallback_error:
-            logging.error(f"OS error creating fallback log file: {fallback_error}")
-            if settings.is_production:
-                raise RuntimeError('Cannot create production log directory or fallback')
-    except PermissionError as e:
-        # Handle permission errors specifically
+            # Use more restrictive permissions
+            log_dir = '/var/log/app'
+            try:
+                os.makedirs(log_dir, mode=0o700, exist_ok=True)
+                log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
+                logging.info(f"Log directory created successfully at {log_dir}")
+            except OSError as e:
+                # Handle file system errors specifically
+                if settings.is_production:
+                    raise RuntimeError(f'Cannot create production log directory due to OS error: {e}')
+                logging.warning(f"OS error creating log directory {log_dir}: {e}. Falling back to current directory.")
+                try:
+                    log_handlers.append(logging.FileHandler('app.log'))
+                except OSError as fallback_error:
+                    logging.error(f"OS error creating fallback log file: {fallback_error}")
+                    if settings.is_production:
+                        raise RuntimeError('Cannot create production log directory or fallback')
+            except PermissionError as e:
+                # Handle permission errors specifically
+                if settings.is_production:
+                    raise RuntimeError(f'Cannot create production log directory due to permission error: {e}')
+                logging.warning(f"Permission error creating log directory {log_dir}: {e}. Falling back to current directory.")
+                try:
+                    log_handlers.append(logging.FileHandler('app.log'))
+                except PermissionError as fallback_error:
+                    logging.error(f"Permission error creating fallback log file: {fallback_error}")
+                    if settings.is_production:
+                        raise RuntimeError('Cannot create production log directory or fallback due to permissions')
+    except Exception as e:
+        # Final fallback: ensure critical errors are always visible
+        logging.error(f"Critical logging setup error: {e}")
         if settings.is_production:
-            raise RuntimeError(f'Cannot create production log directory due to permission error: {e}')
-        logging.warning(f"Permission error creating log directory {log_dir}: {e}. Falling back to current directory.")
-        try:
-            log_handlers.append(logging.FileHandler('app.log'))
-        except PermissionError as fallback_error:
-            logging.error(f"Permission error creating fallback log file: {fallback_error}")
-            if settings.is_production:
-                raise RuntimeError('Cannot create production log directory or fallback due to permissions')
+            # In production, we must have proper logging
+            raise RuntimeError(f"Critical logging setup failure in production: {e}")
+        else:
+            # In development, warn but continue with console logging only
+            logging.warning("Falling back to console logging only due to setup errors")
+    
+    logging.basicConfig(
+        level=logging.INFO if settings.is_production else logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=log_handlers
+    )
 
-logging.basicConfig(
-    level=logging.INFO if settings.is_production else logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=log_handlers
-)
-
+# Setup logging
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Set third-party loggers to WARNING level to reduce noise
@@ -60,7 +78,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
-async def retry_with_exponential_backoff(func, max_retries=3):
+async def retry_with_exponential_backoff(func: Callable[[], Awaitable[T]], max_retries: int = 3) -> T:
     """
     Retry function with exponential backoff and jitter.
     

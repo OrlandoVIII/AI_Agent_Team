@@ -26,7 +26,7 @@ engine = create_async_engine(
     max_overflow=20,
 )
 
-# Create session factory
+# Create session factory with timeout configuration
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
