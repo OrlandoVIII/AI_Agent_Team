@@ -16,25 +16,23 @@ class Base(DeclarativeBase):
     pass
 
 
-# Create async engine with connection pool configuration
+# Create async engine with connection pool configuration from settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,
     pool_pre_ping=True,
-    pool_recycle=300,
-    pool_size=10,
-    max_overflow=20,
+    pool_recycle=settings.POOL_RECYCLE,
+    pool_size=settings.DATABASE_POOL_SIZE,
+    max_overflow=settings.DATABASE_MAX_OVERFLOW,
 )
 
-# Create session factory with timeout configuration
+# Create session factory with timeout configuration from settings
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
     expire_on_commit=False,
     autoflush=False,
     autocommit=False,
-    pool_timeout=20,
-    pool_recycle=3600,
 )
 
 
