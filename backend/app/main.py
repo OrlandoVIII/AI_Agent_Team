@@ -18,14 +18,18 @@ log_handlers = [logging.StreamHandler(sys.stdout)]
 
 if settings.is_production:
     log_dir = '/app/logs'
-    # Create log directory with error handling
+    # Create log directory with error handling and proper permissions
     try:
-        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(log_dir, mode=0o755, exist_ok=True)
         log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
+        logging.info(f"Log directory created successfully at {log_dir}")
     except (OSError, PermissionError) as e:
         # Fallback to current directory if /app/logs creation fails
-        logging.warning(f"Could not create log directory {log_dir}: {e}. Using current directory.")
-        log_handlers.append(logging.FileHandler('app.log'))
+        logging.warning(f"Could not create log directory {log_dir}: {e}. Falling back to current directory.")
+        try:
+            log_handlers.append(logging.FileHandler('app.log'))
+        except Exception as fallback_error:
+            logging.error(f"Could not create fallback log file: {fallback_error}")
 
 logging.basicConfig(
     level=logging.INFO if settings.is_production else logging.DEBUG,

@@ -29,11 +29,11 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # Database Settings
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db"
+    DATABASE_URL: str = Field(default_factory=lambda: os.getenv('DATABASE_URL', 'postgresql+asyncpg://user:password@localhost:5432/fastapi_db'))
     DATABASE_ECHO: bool = Field(default=False)
     
     # Security Settings
-    SECRET_KEY: str = "change-me-in-production-must-be-32-chars-minimum"
+    SECRET_KEY: str = Field(...)
     ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
     
