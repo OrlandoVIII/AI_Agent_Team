@@ -1,4 +1,5 @@
 import logging
+import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,7 +12,21 @@ from app.config import settings
 from app.database import engine, AsyncSessionLocal
 from app.models.base import Base
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO if settings.is_production else logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("app.log") if settings.is_production else logging.NullHandler()
+    ]
+)
+
 logger = logging.getLogger(__name__)
+
+# Set third-party loggers to WARNING level to reduce noise
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
 async def create_tables():
