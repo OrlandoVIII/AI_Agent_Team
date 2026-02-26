@@ -42,10 +42,24 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         async with AsyncSessionLocal() as session:
             try:
                 yield session
+            except asyncpg.exceptions.ConnectionDoesNotExistError as e:
+                logger.error(f"Database connection does not exist: {e}")
+                await session.rollback()
+                raise HTTPException(status_code=503, detail="Database connection lost")
+            except asyncpg.exceptions.PostgresError as e:
+                logger.error(f"PostgreSQL error: {e}")
+                await session.rollback()
+                raise HTTPException(status_code=500, detail=f"Database error: {e.sqlstate}")
             except SQLAlchemyError as e:
                 logger.error(f"Database session error: {e}")
                 await session.rollback()
                 raise HTTPException(status_code=500, detail="Database error")
+    except asyncpg.exceptions.ConnectionDoesNotExistError as e:
+        logger.error(f"Database connection failed - connection does not exist: {e}")
+        raise HTTPException(status_code=503, detail="Database unavailable - connection lost")
+    except asyncpg.exceptions.PostgresError as e:
+        logger.error(f"Database connection failed - PostgreSQL error: {e}")
+        raise HTTPException(status_code=503, detail="Database unavailable - connection error")
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         raise HTTPException(status_code=503, detail="Database unavailable")

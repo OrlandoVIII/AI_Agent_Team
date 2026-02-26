@@ -24,17 +24,28 @@ if settings.is_production:
         os.makedirs(log_dir, mode=0o700, exist_ok=True)
         log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
         logging.info(f"Log directory created successfully at {log_dir}")
-    except (OSError, PermissionError) as e:
-        # In production, fail fast if proper log directory cannot be created
-        if settings.is_production and not log_handlers[1:]:  # Only stdout handler exists
-            raise RuntimeError(f'Cannot create production log directory: {e}')
-        logging.warning(f"Could not create log directory {log_dir}: {e}. Falling back to current directory.")
+    except OSError as e:
+        # Handle file system errors specifically
+        if settings.is_production:
+            raise RuntimeError(f'Cannot create production log directory due to OS error: {e}')
+        logging.warning(f"OS error creating log directory {log_dir}: {e}. Falling back to current directory.")
         try:
             log_handlers.append(logging.FileHandler('app.log'))
-        except Exception as fallback_error:
-            logging.error(f"Could not create fallback log file: {fallback_error}")
+        except OSError as fallback_error:
+            logging.error(f"OS error creating fallback log file: {fallback_error}")
             if settings.is_production:
-                raise RuntimeError('Cannot create production log directory')
+                raise RuntimeError('Cannot create production log directory or fallback')
+    except PermissionError as e:
+        # Handle permission errors specifically
+        if settings.is_production:
+            raise RuntimeError(f'Cannot create production log directory due to permission error: {e}')
+        logging.warning(f"Permission error creating log directory {log_dir}: {e}. Falling back to current directory.")
+        try:
+            log_handlers.append(logging.FileHandler('app.log'))
+        except PermissionError as fallback_error:
+            logging.error(f"Permission error creating fallback log file: {fallback_error}")
+            if settings.is_production:
+                raise RuntimeError('Cannot create production log directory or fallback due to permissions')
 
 logging.basicConfig(
     level=logging.INFO if settings.is_production else logging.DEBUG,
@@ -50,7 +61,22 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
 async def retry_with_exponential_backoff(func, max_retries=3):
-    """Utility function for retrying operations with exponential backoff."""
+    """
+    Retry function with exponential backoff and jitter.
+    
+    Args:
+        func: Async function to retry
+        max_retries: Maximum retry attempts (default 3)
+        
+    Returns:
+        Result of the function call
+        
+    Raises:
+        Exception: The last exception encountered if all retries fail
+        
+    The function implements exponential backoff with jitter to prevent
+    thundering herd problems when multiple instances retry simultaneously.
+    """
     for attempt in range(max_retries):
         try:
             return await func()
