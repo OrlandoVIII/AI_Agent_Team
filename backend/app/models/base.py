@@ -11,12 +11,14 @@ class Base(DeclarativeBase):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.timezone('UTC', func.now()),
-        nullable=False
+        nullable=False,
+        index=True
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         onupdate=func.timezone('UTC', func.now()),
-        nullable=True
+        nullable=True,
+        index=True
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), 

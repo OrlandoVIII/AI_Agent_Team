@@ -25,6 +25,7 @@ engine = create_async_engine(
     pool_recycle=settings.POOL_RECYCLE,
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    connect_args={'connect_timeout': settings.DATABASE_CONNECT_TIMEOUT}
 )
 
 # Create session factory with timeout configuration from settings

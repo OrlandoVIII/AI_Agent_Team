@@ -2,6 +2,7 @@ import logging
 import sys
 import os
 import asyncio
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -25,7 +26,7 @@ def setup_logging():
         try:
             log_dir = '/app/logs' if settings.is_production else '.'
             if settings.is_production:
-                os.makedirs(log_dir, mode=0o755, exist_ok=True)
+                Path(log_dir).mkdir(parents=True, exist_ok=True)
             log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
         except (OSError, PermissionError) as e:
             if settings.is_production:
@@ -90,8 +91,8 @@ app.add_middleware(
 async def health_check():
     """Health check endpoint with database connectivity check and timeout protection."""
     try:
-        # Check database connectivity with timeout
-        async with asyncio.wait_for(AsyncSessionLocal(), timeout=5) as session:
+        # Check database connectivity with configurable timeout from settings
+        async with asyncio.wait_for(AsyncSessionLocal(), timeout=settings.DATABASE_CONNECT_TIMEOUT) as session:
             await session.execute(text('SELECT 1'))
         
         return JSONResponse(
