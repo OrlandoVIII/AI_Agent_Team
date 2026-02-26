@@ -63,6 +63,10 @@ def setup_logging():
             # In development, warn but continue with console logging only
             logging.warning("Falling back to console logging only due to setup errors")
     
+    # Final validation to ensure at least one log handler is configured
+    if not log_handlers:
+        raise RuntimeError('No log handlers configured')
+    
     logging.basicConfig(
         level=logging.INFO if settings.is_production else logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -78,13 +82,15 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
-async def retry_with_exponential_backoff(func: Callable[[], Awaitable[T]], max_retries: int = 3) -> T:
+async def retry_with_exponential_backoff(func: Callable[[], Awaitable[T]], max_retries: int = 3, base_delay: int = 1, max_delay: int = 60) -> T:
     """
     Retry function with exponential backoff and jitter.
     
     Args:
         func: Async function to retry
         max_retries: Maximum retry attempts (default 3)
+        base_delay: Base delay in seconds (default 1)
+        max_delay: Maximum delay in seconds (default 60)
         
     Returns:
         Result of the function call
@@ -103,7 +109,8 @@ async def retry_with_exponential_backoff(func: Callable[[], Awaitable[T]], max_r
                 raise
             logger.warning(f"Operation attempt {attempt + 1} failed: {e}. Retrying...")
             # Exponential backoff with jitter to prevent thundering herd
-            await asyncio.sleep(2 ** attempt + random.uniform(0, 1))
+            delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
+            await asyncio.sleep(delay)
 
 
 async def create_tables():
