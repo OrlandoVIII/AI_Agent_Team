@@ -18,10 +18,13 @@ log_handlers = [logging.StreamHandler(sys.stdout)]
 
 if settings.is_production:
     log_dir = '/app/logs'
-    if os.path.exists(log_dir) and os.access(log_dir, os.W_OK):
+    # Create log directory with error handling
+    try:
+        os.makedirs(log_dir, exist_ok=True)
         log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
-    else:
-        # Fallback to current directory if /app/logs doesn't exist or isn't writable
+    except (OSError, PermissionError) as e:
+        # Fallback to current directory if /app/logs creation fails
+        logging.warning(f"Could not create log directory {log_dir}: {e}. Using current directory.")
         log_handlers.append(logging.FileHandler('app.log'))
 
 logging.basicConfig(
