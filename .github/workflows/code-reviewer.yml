@@ -67,6 +67,8 @@ jobs:
           git config user.name "AI Backend Dev Agent"
           git config user.email "backendagent@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.BACKEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
+          git checkout origin/develop -- .github/scripts/backend_agent_fix.py
+          git checkout origin/develop -- .github/scripts/backend_agent_fix_prompt.txt
           python .github/scripts/backend_agent_fix.py
 
       - name: Fail if criticals found
