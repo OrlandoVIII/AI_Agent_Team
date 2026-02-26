@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 
@@ -19,14 +20,14 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Database settings
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/fastapi_db"
+    DATABASE_URL: str = os.getenv('DATABASE_URL', 'postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db')
     DATABASE_ECHO: bool = False
     
     # CORS settings
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
-    # Security settings
-    SECRET_KEY: str = "your-secret-key-change-this-in-production"
+    # Security settings - NO DEFAULT VALUES for secrets
+    SECRET_KEY: str  # Must be set in environment
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
