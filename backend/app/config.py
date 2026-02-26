@@ -22,15 +22,21 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     
-    # Database settings - NO DEFAULT for production security
-    DATABASE_URL: str
+    # Database settings - with development fallback
+    DATABASE_URL: str = os.getenv(
+        'DATABASE_URL', 
+        'postgresql+asyncpg://postgres:password@localhost:5432/fastapi_db' if os.getenv('ENVIRONMENT', 'development') == 'development' else ''
+    )
     DATABASE_ECHO: bool = False
     
     # CORS settings
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
-    # Security settings - NO DEFAULT VALUES for secrets
-    SECRET_KEY: str  # Must be set in environment
+    # Security settings - with development fallback for SECRET_KEY
+    SECRET_KEY: str = os.getenv(
+        'SECRET_KEY',
+        'dev-secret-key-change-in-production-minimum-32-chars-for-security-requirements' if os.getenv('ENVIRONMENT', 'development') == 'development' else ''
+    )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     

@@ -17,12 +17,16 @@ class Base(DeclarativeBase):
     pass
 
 
-# Create async engine
+# Create async engine with connection pool configuration
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,
     future=True,
     pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=30,
+    pool_recycle=3600,
 )
 
 # Create async session factory

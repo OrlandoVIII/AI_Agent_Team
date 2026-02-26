@@ -1,7 +1,8 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+from contextual import asynccontextmanager
+from sqlalchemy.exc import SQLAlchemyError, DisconnectionError
 
 from app.config import settings
 from app.database import create_tables
@@ -18,10 +19,22 @@ async def lifespan(app: FastAPI):
     try:
         await create_tables()
         logger.info("Database tables created successfully")
+    except DisconnectionError as e:
+        logger.error(f'Database connection failed during startup: {e}')
+        if settings.ENVIRONMENT == "production":
+            logger.critical("Application cannot start without database access in production")
+            raise
+        else:
+            logger.warning("Continuing startup in development mode despite database connection error")
+    except SQLAlchemyError as e:
+        logger.error(f'Database error during startup: {e}')
+        if settings.ENVIRONMENT == "production":
+            logger.critical("Application cannot start with database errors in production")
+            raise
+        else:
+            logger.warning("Continuing startup in development mode despite database error")
     except Exception as e:
         logger.error(f'Critical error during startup - failed to create tables: {e}')
-        # In production, you might want to continue in degraded mode
-        # For now, we'll raise to prevent startup with broken DB
         if settings.ENVIRONMENT == "production":
             logger.critical("Application cannot start without database access in production")
             raise
