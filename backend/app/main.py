@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+import asyncio
 
 from app.config import settings
 from app.database import engine, AsyncSessionLocal
@@ -13,17 +14,27 @@ from app.models.base import Base
 logger = logging.getLogger(__name__)
 
 
+async def create_tables():
+    """Create database tables with retry logic."""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            return
+        except SQLAlchemyError as e:
+            if attempt == max_retries - 1:
+                raise
+            logger.warning(f"Database creation attempt {attempt + 1} failed: {e}. Retrying...")
+            await asyncio.sleep(2 ** attempt)  # exponential backoff
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     try:
-        # Create tables on startup
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        await create_tables()
         logger.info("Database tables created successfully")
-    except SQLAlchemyError as e:
-        logger.error(f"Database table creation failed: {e}")
-        raise
     except Exception as e:
         logger.error(f"Failed to create tables: {e}")
         raise

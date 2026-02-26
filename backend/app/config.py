@@ -47,6 +47,14 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
     
+    @field_validator("ALLOWED_HOSTS", mode="before")
+    @classmethod
+    def parse_allowed_hosts(cls, v):
+        """Parse ALLOWED_HOSTS from environment variable or use default."""
+        if isinstance(v, str):
+            return [host.strip() for host in v.split(",") if host.strip()]
+        return v or ["http://localhost:3000", "http://localhost:8000"]
+    
     @property
     def is_development(self) -> bool:
         """Check if environment is development."""
@@ -59,3 +67,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Override from environment variables if provided
+if os.getenv("ALLOWED_HOSTS"):
+    settings.ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS").split(",") if host.strip()]
