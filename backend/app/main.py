@@ -25,7 +25,7 @@ def setup_logging():
         try:
             log_dir = '/app/logs' if settings.is_production else '.'
             if settings.is_production:
-                os.makedirs(log_dir, mode=0o700, exist_ok=True)
+                os.makedirs(log_dir, mode=0o755, exist_ok=True)
             log_handlers.append(logging.FileHandler(f'{log_dir}/app.log'))
         except (OSError, PermissionError) as e:
             if settings.is_production:

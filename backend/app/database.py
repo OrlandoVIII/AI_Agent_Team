@@ -49,13 +49,13 @@ def map_db_error(e: Exception) -> HTTPException:
         else:
             return HTTPException(status_code=500, detail="Internal server error")
     else:
-        # In development, return detailed error information for debugging
+        # In development, sanitize error messages to prevent schema information leakage
         if isinstance(e, asyncpg.exceptions.ConnectionDoesNotExistError):
             logger.error(f"Database connection does not exist: {e}")
-            return HTTPException(status_code=503, detail="Database connection lost")
+            return HTTPException(status_code=503, detail="Connection error")
         elif isinstance(e, asyncpg.exceptions.PostgresError):
             logger.error(f"PostgreSQL error: {e}")
-            return HTTPException(status_code=500, detail=f"Database error: {e.sqlstate}")
+            return HTTPException(status_code=500, detail="Query error")
         elif isinstance(e, SQLAlchemyError):
             logger.error(f"Database session error: {e}")
             return HTTPException(status_code=500, detail="Database error")

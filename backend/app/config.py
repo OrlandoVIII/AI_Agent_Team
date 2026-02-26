@@ -1,3 +1,4 @@
+import os
 from typing import List
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,9 +28,11 @@ class Settings(BaseSettings):
     # CORS Settings
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
-    # Database Settings
+    # Database Settings - Make pool settings configurable via environment variables
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db"
     DATABASE_ECHO: bool = False
+    DATABASE_POOL_SIZE: int = int(os.getenv('DATABASE_POOL_SIZE', '10'))
+    DATABASE_MAX_OVERFLOW: int = int(os.getenv('DATABASE_MAX_OVERFLOW', '20'))
     
     # Security Settings
     SECRET_KEY: str = "change-me-in-production-must-be-32-chars-minimum"
