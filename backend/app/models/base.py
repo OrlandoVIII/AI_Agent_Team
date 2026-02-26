@@ -22,7 +22,8 @@ class Base(DeclarativeBase):
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), 
-        nullable=True
+        nullable=True,
+        index=True  # Added index for soft-delete operations
     )
     
     def __repr__(self) -> str:
