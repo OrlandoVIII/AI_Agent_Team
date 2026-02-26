@@ -301,8 +301,35 @@ def main():
         sys.exit(1)
     else:
         print("\n✅ Review completed: APPROVED")
+        auto_merge(pr)
         sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
+
+
+def auto_merge(pr) -> None:
+    """Merge the PR into develop after approval, then delete the branch."""
+    try:
+        print("   🔀 Auto-merging PR into develop...")
+        branch_name = pr.head.ref
+        repo = pr.base.repo
+        pr.merge(
+            commit_title=f"feat: merge {branch_name} into develop (auto-approved)",
+            commit_message=f"Auto-merged by Code Reviewer Agent after approval.\n\nPR #{pr.number}: {pr.title}",
+            merge_method="squash"
+        )
+        print("   ✅ PR merged successfully!")
+
+        # Delete the feature branch after merge
+        try:
+            ref = repo.get_git_ref(f"heads/{branch_name}")
+            ref.delete()
+            print(f"   🗑️ Branch '{branch_name}' deleted.")
+        except Exception as e:
+            print(f"   ⚠️ Could not delete branch '{branch_name}': {e}")
+
+    except Exception as e:
+        print(f"   ⚠️ Auto-merge failed: {e}")
+        print("   PR approved but must be merged manually.")
