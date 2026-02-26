@@ -89,11 +89,14 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with database connectivity check and separate timeout for health checks."""
+    """Health check endpoint with database connectivity check using engine connection."""
     try:
-        # Check database connectivity with faster health check timeout
-        async with asyncio.wait_for(AsyncSessionLocal(), timeout=settings.HEALTH_CHECK_TIMEOUT) as session:
-            await session.execute(select(1))
+        # Check database connectivity with faster health check timeout using direct engine connection
+        async with asyncio.wait_for(
+            engine.connect(), 
+            timeout=settings.HEALTH_CHECK_TIMEOUT
+        ) as conn:
+            await conn.execute(select(1))
         
         return JSONResponse(
             content={
