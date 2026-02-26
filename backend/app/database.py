@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.exc import SQLAlchemyError
@@ -63,15 +64,18 @@ def map_db_error(e: Exception) -> HTTPException:
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency to get database session with error handling."""
+    """Dependency to get database session with error handling and timeout."""
     try:
-        async with AsyncSessionLocal() as session:
+        async with asyncio.wait_for(AsyncSessionLocal(), timeout=settings.POOL_TIMEOUT) as session:
             try:
                 yield session
             except SQLAlchemyError as e:
                 logger.error(f"Database session error: {e}")
                 await session.rollback()
                 raise HTTPException(status_code=500, detail="Database error")
+    except asyncio.TimeoutError:
+        logger.error("Database connection timeout")
+        raise HTTPException(status_code=503, detail="Database timeout")
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         raise HTTPException(status_code=503, detail="Database unavailable")

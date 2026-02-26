@@ -1,6 +1,7 @@
 import logging
 import sys
 import os
+import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -91,10 +92,10 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with database connectivity check."""
+    """Health check endpoint with database connectivity check and timeout protection."""
     try:
-        # Check database connectivity
-        async with AsyncSessionLocal() as session:
+        # Check database connectivity with timeout
+        async with asyncio.wait_for(AsyncSessionLocal(), timeout=5) as session:
             await session.execute(text('SELECT 1'))
         
         return JSONResponse(
@@ -104,6 +105,12 @@ async def health_check():
                 "version": settings.VERSION,
                 "database": "connected"
             }
+        )
+    except asyncio.TimeoutError:
+        logger.error("Health check database timeout")
+        raise HTTPException(
+            status_code=503, 
+            detail="Service unavailable - database timeout"
         )
     except SQLAlchemyError as e:
         logger.error(f"Health check database error: {str(e)}")
