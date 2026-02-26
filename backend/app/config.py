@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # Database Settings - Make pool settings configurable via environment variables
-    DATABASE_URL: str
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/fastapi_db"
     DATABASE_ECHO: bool = False
     DATABASE_POOL_SIZE: int = int(os.getenv('DATABASE_POOL_SIZE', '10'))
     DATABASE_MAX_OVERFLOW: int = int(os.getenv('DATABASE_MAX_OVERFLOW', '20'))
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     POOL_RECYCLE: int = int(os.getenv('POOL_RECYCLE', '3600'))
     
     # Security Settings
-    SECRET_KEY: str
+    SECRET_KEY: str = "change-me-in-production-must-be-32-chars-minimum"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     

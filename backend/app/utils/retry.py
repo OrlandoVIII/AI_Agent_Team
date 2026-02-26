@@ -33,13 +33,20 @@ async def retry_with_exponential_backoff(
     The function implements exponential backoff with jitter to prevent
     thundering herd problems when multiple instances retry simultaneously.
     """
+    last_exception = None
     for attempt in range(max_retries):
         try:
             return await func()
         except Exception as e:
+            last_exception = e
             if attempt == max_retries - 1:
+                logger.error(f'All {max_retries} retry attempts failed for operation')
                 raise
             logger.warning(f"Operation attempt {attempt + 1} failed: {e}. Retrying...")
             # Exponential backoff with jitter to prevent thundering herd
             delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
             await asyncio.sleep(delay)
+    
+    # This should never be reached, but added for completeness
+    if last_exception:
+        raise last_exception

@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-from sqlalchemy import text
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
@@ -93,7 +93,7 @@ async def health_check():
     try:
         # Check database connectivity with faster health check timeout
         async with asyncio.wait_for(AsyncSessionLocal(), timeout=settings.HEALTH_CHECK_TIMEOUT) as session:
-            await session.execute(text('SELECT 1'))
+            await session.execute(select(1))
         
         return JSONResponse(
             content={
