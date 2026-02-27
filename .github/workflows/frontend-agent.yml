@@ -1,0 +1,47 @@
+name: Frontend Dev Agent
+
+on:
+  issues:
+    types: [assigned]
+
+jobs:
+  check-and-run:
+    name: Handle Issue Assignment
+    runs-on: ubuntu-latest
+
+    if: github.event.assignee.login == 'opulence-frontend1-bot'
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Clone repo as Frontend Agent
+        run: |
+          git clone https://x-access-token:${{ secrets.FRONTEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git .
+          git checkout develop
+          git config user.name "AI Frontend Dev Agent"
+          git config user.email "frontendagent@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.FRONTEND_AGENT_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install anthropic PyGithub requests
+
+      - name: Run Frontend Dev Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FRONTEND_AGENT_TOKEN: ${{ secrets.FRONTEND_AGENT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FRONTEND_AGENT_TOKEN }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ASSIGNEE: ${{ github.event.assignee.login }}
+        run: |
+          python .github/scripts/frontend_agent.py
