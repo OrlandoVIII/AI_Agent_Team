@@ -330,6 +330,23 @@ def auto_merge(pr) -> None:
         except Exception as e:
             print(f"   ⚠️ Could not delete branch '{branch_name}': {e}")
 
+        # Close any linked issues
+        try:
+            for issue in pr.as_issue().repository.get_issues(state="open"):
+                # Check if issue is referenced in PR body or branch name
+                pr_body = pr.body or ""
+                if (
+                    f"#{issue.number}" in pr_body
+                    or f"closes #{issue.number}" in pr_body.lower()
+                    or f"fixes #{issue.number}" in pr_body.lower()
+                    or f"resolves #{issue.number}" in pr_body.lower()
+                    or str(issue.number) in branch_name
+                ):
+                    issue.edit(state="closed")
+                    print(f"   ✅ Closed linked issue #{issue.number}: {issue.title}")
+        except Exception as e:
+            print(f"   ⚠️ Could not close linked issues: {e}")
+
     except Exception as e:
         print(f"   ⚠️ Auto-merge failed: {e}")
         print("   PR approved but must be merged manually.")
